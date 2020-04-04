@@ -255,3 +255,145 @@ func (s *LwdStreamer) Ping(ctx context.Context, in *walletrpc.Duration) (*wallet
 	response.Exit = atomic.AddInt64(&concurrent, -1)
 	return &response, nil
 }
+
+// Identity
+func (s *LwdStreamer) RegisterNameCommitment(ctx context.Context, request *walletrpc.RegisterNameCommitmentRequest) (*walletrpc.RegisterNameCommitmentResponse, error) {
+	//
+	// Registers a name commitment, which is required as a source for the name to be used when registering an identity. The name commitment hides the name itself
+	// while ensuring that the miner who mines in the registration cannot front-run the name unless they have also registered a name commitment for the same name or
+	// are willing to forfeit the offer of payment for the chance that a commitment made now will allow them to register the name in the future.
+	//
+	// Arguments
+	// 	"name"                           (string, required)  the unique name to commit to. creating a name commitment is not a registration, and if one is
+	//                                                       created for a name that exists, it may succeed, but will never be able to be used.
+	// 	"controladdress"                 (address, required) address that will control this commitment
+	// 	"referralidentity"               (identity, optional)friendly name or identity address that is provided as a referral mechanism and to lower network cost of the ID
+
+	result, rpcErr := common.RegisterNameCommitment(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("RegisterNameCommitment error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+
+	// TODO these are called Error but they aren't at the moment.
+	// A success will return code 0 and message name commitment.
+	return result, nil
+}
+
+func (s *LwdStreamer) RegisterIdentity(ctx context.Context, request *walletrpc.RegisterIdentityRequest) (*walletrpc.RegisterIdentityResponse, error) {
+	//
+	//	Arguments
+	//	{
+	//		"txid" : "hexid",          (hex)    the transaction ID of the name committment for this ID name
+	//		"namereservation" :
+	//		{
+	//			"name": "namestr",     (string) the unique name in this commitment
+	//			"salt": "hexstr",      (hex)    salt used to hide the commitment
+	//			"referrer": "identityID", (name@ or address) must be a valid ID to use as a referrer to receive a discount
+	//		},
+	//		"identity" :
+	//		{
+	//			"name": "namestr",     (string) the unique name for this identity
+	//			...
+	//		}
+	//	}
+	//	feeoffer                           (amount, optional) amount to offer miner/staker for the registration fee, if missing, uses standard price
+	//
+	//
+	// Result:
+	//	transactionid                   (hexstr)
+
+	result, rpcErr := common.RegisterIdentity(request)
+	if rpcErr != nil {
+		common.Log.Errorf("RegisterIdentity error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}
+
+func (s *LwdStreamer) RevokeIdentity(ctx context.Context, request *walletrpc.RevokeIdentityRequest) (*walletrpc.RevokeIdentityResponse, error) {
+	result, rpcErr := common.RevokeIdentity(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("RevokeIdentity error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}
+
+func (s *LwdStreamer) RecoverIdentity(ctx context.Context, request *walletrpc.RecoverIdentityRequest) (*walletrpc.RecoverIdentityResponse, error) {
+	result, rpcErr := common.RecoverIdentity(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("RecoverIdentity error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}
+
+func (s *LwdStreamer) UpdateIdentity(ctx context.Context, request *walletrpc.UpdateIdentityRequest) (*walletrpc.UpdateIdentityResponse, error) {
+	result, rpcErr := common.UpdateIdentity(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("UpdateIdentity error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}
+
+func (s *LwdStreamer) GetIdentity(ctx context.Context, request *walletrpc.GetIdentityRequest) (*walletrpc.GetIdentityResponse, error) {
+	result, rpcErr := common.GetIdentity(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("UpdateIdentity error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}
+
+func (s *LwdStreamer) VerifyMessage(ctx context.Context, request *walletrpc.VerifyMessageRequest) (*walletrpc.VerifyMessageResponse, error) {
+	// verifymessage "address or identity" "signature" "message" "checklatest"
+	//
+	// Verify a signed message
+	//
+	// Arguments:
+	// 1. "t-addr or identity" (string, required) The transparent address or identity that signed the message.
+	// 2. "signature"       (string, required) The signature provided by the signer in base 64 encoding (see signmessage).
+	// 3. "message"         (string, required) The message that was signed.
+	// 4. "checklatest"     (bool, optional)   If true, checks signature validity based on latest identity. defaults to false,
+	//                                          which determines validity of signing height stored in signature.
+	//
+	// Result:
+	// true|false   (boolean) If the signature is verified or not.
+	result, rpcErr := common.VerifyMessage(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("VerifyMessage error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}
+
+func (s *LwdStreamer) VerifyHash(ctx context.Context, request *walletrpc.VerifyHashRequest) (*walletrpc.VerifyHashResponse, error) {
+	// verifyhash "address or identity" "signature" "hexhash" "checklatest"
+	//
+	// Verify a signed message
+	//
+	// Arguments:
+	// 1. "t-addr or identity" (string, required) The transparent address or identity that signed the message.
+	// 2. "signature"       (string, required) The signature provided by the signer in base 64 encoding (see signfile).
+	// 3. "hexhash"         (string, required) Hash of the message or file that was signed.
+	// 4. "checklatest"     (bool, optional)   If true, checks signature validity based on latest identity. defaults to false,
+	//                                          which determines validity of signing height stored in signature.
+	//
+	// Result:
+	// true|false   (boolean) If the signature is verified or not.
+	result, rpcErr := common.VerifyHash(request)
+
+	if rpcErr != nil {
+		common.Log.Errorf("VerifyHash error: %s", rpcErr.Error())
+		return nil, errors.New((strings.Split(rpcErr.Error(), ":"))[0])
+	}
+	return result, nil
+}

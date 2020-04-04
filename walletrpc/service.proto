@@ -11,8 +11,8 @@ import "compact_formats.proto";
 // A BlockID message contains identifiers to select a block: a height or a
 // hash. Specification by hash is not implemented, but may be in the future.
 message BlockID {
-     uint64 height = 1;
-     bytes hash = 2;
+    uint64 height = 1;
+    bytes hash = 2;
 }
 
 // BlockRange specifies a series of blocks from start to end inclusive.
@@ -26,12 +26,12 @@ message BlockRange {
 // transaction: either a block and an index, or a direct transaction hash.
 // Currently, only specification by hash is supported.
 message TxFilter {
-     BlockID block = 1;
-     uint64 index = 2;
-     bytes hash = 3;
+    BlockID block = 1;
+    uint64 index = 2;
+    bytes hash = 3;
 }
 
-// RawTransaction contains the complete transaction data. It also optionally includes 
+// RawTransaction contains the complete transaction data. It also optionally includes
 // the block height in which the transaction was included
 message RawTransaction {
     bytes data = 1;
@@ -85,6 +85,115 @@ message PingResponse {
     int64 exit = 2;
 }
 
+message RegisterNameCommitmentRequest {
+    string name = 1;
+    string controllingaddress = 2;
+    string referralidentity = 3;
+}
+
+message NameReservation {
+    string name = 1;
+    string salt = 2;
+    string referral = 3;
+    string parent = 4;
+    string nameid = 5;
+}
+
+// Name reservation with txid.
+message RegisterNameCommitmentResponse {
+    string txid = 1;
+    NameReservation namereservation = 2;
+}
+
+message Identity {
+    string name = 1;
+    map<string, string> contentmap = 2;
+    repeated string primaryaddresses = 3;
+    uint32 minimumsignatures = 4;
+    string privateaddress = 5;
+    string revocationauthority = 6;
+    string recoveryauthority = 7;
+    uint32 flags = 8;
+    uint32 version = 9;
+    string parent = 10;
+}
+
+message RegisterIdentityRequest {
+    string txid = 1;
+    NameReservation namereservation = 2;
+    Identity identity = 3;
+    double feeoffer = 4;
+}
+
+message RegisterIdentityResponse {
+    string txid = 1;
+}
+
+message GetIdentityRequest {
+    string identity = 1; // Name or address of identity
+}
+
+message IdentityInfo {
+    Identity identity = 1;
+    string status = 2;
+    bool canspendfor = 3;
+    bool cansignfor = 4;
+    uint64 blockheight = 5;
+    string txid = 6;
+    uint32 vout = 7;
+}
+
+message GetIdentityResponse {
+    IdentityInfo identityinfo = 1;
+}
+
+message RevokeIdentityRequest {
+    string identity = 1; // Name or address of identity to revoke
+}
+
+message RevokeIdentityResponse {
+    string txid = 1;
+}
+message RecoverIdentityRequest {
+    Identity identity = 1;
+}
+
+message RecoverIdentityResponse {
+    string txid = 1;
+}
+
+message UpdateIdentityRequest {
+    Identity identity = 1;
+}
+
+message UpdateIdentityResponse {
+    string txid = 1;
+}
+
+message VerifyMessageRequest {
+    string signer = 1;
+    string signature = 2;
+    string message = 3;
+    bool checklatest = 4;
+
+}
+
+message VerifyMessageResponse {
+    bool signatureisvalid = 1;
+}
+
+message VerifyHashRequest {
+    string signer = 1;
+    string signature = 2;
+    string hash = 3;
+    bool checklatest = 4;
+
+}
+
+message VerifyHashResponse {
+    bool signatureisvalid = 1;
+}
+
 service CompactTxStreamer {
     // Compact Blocks
     rpc GetLatestBlock(ChainSpec) returns (BlockID) {}
@@ -97,6 +206,16 @@ service CompactTxStreamer {
 
     // t-Address support
     rpc GetAddressTxids(TransparentAddressBlockFilter) returns (stream RawTransaction) {}
+
+    // Identity
+    rpc RegisterNameCommitment(RegisterNameCommitmentRequest) returns (RegisterNameCommitmentResponse) {}
+    rpc RegisterIdentity(RegisterIdentityRequest) returns (RegisterIdentityResponse) {}
+    rpc RevokeIdentity(RevokeIdentityRequest) returns (RevokeIdentityResponse) {}
+    rpc RecoverIdentity(RecoverIdentityRequest) returns (RecoverIdentityResponse) {}
+    rpc UpdateIdentity(UpdateIdentityRequest) returns (UpdateIdentityResponse) {}
+    rpc GetIdentity(GetIdentityRequest) returns (GetIdentityResponse) {}
+    rpc VerifyMessage(VerifyMessageRequest) returns (VerifyMessageResponse) {}
+    rpc VerifyHash(VerifyHashRequest) returns (VerifyHashResponse) {}
 
     // Misc
     rpc GetLightdInfo(Empty) returns (LightdInfo) {}
