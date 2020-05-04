@@ -21,9 +21,9 @@ The Lightwalletd Server is experimental and a work in progress. Use it at your o
 
 lightwalletd is a backend service that provides a bandwidth-efficient interface to the Zcash blockchain for mobile and other wallets, such as [Zecwallet](https://github.com/adityapk00/zecwallet-lite-lib).
 
-Lightwalletd has not yet undergone audits or been subject to rigorous testing. It lacks some affordances necessary for production-level reliability. We do not recommend using it to handle customer funds at this time (October 2019).
+Lightwalletd has not yet undergone audits or been subject to rigorous testing. It lacks some affordances necessary for production-level reliability. We do not recommend using it to handle customer funds at this time (April 2020).
 
-To view status of [CI pipeline](https://gitlab.com/mdr0id/lightwalletd/pipelines)
+To view status of [CI pipeline](https://gitlab.com/zcash/lightwalletd/pipelines)
 
 To view detailed [Codecov](https://codecov.io/gh/zcash/lightwalletd) report
 
@@ -36,12 +36,17 @@ Documentation for lightwalletd clients (the gRPC interface) is in `docs/rtd/inde
 
 ## Zcashd
 
-You must start a local instance of `zcashd`, and its `.zcash/zcash.conf` file must include the following entries:
+You must start a local instance of `zcashd`, and its `.zcash/zcash.conf` file must include the following entries
+(set the user and password strings accordingly):
 ```
 txindex=1
 insightexplorer=1
 experimentalfeatures=1
+rpcuser=xxxxx
+rpcpassword=xxxxx
 ```
+
+The `zcashd` can be configured to run `mainnet` or `testnet` (or `regtest`). If you stop `zcashd` and restart it on a different network (switch from `testnet` to `mainnet`, for example), you must also stop and restart lightwalletd.
 
 It's necessary to run `zcashd --reindex` one time for these options to take effect. This typically takes several hours, and requires more space in the `.zcash` data directory.
 
@@ -56,21 +61,21 @@ Lightwalletd uses the following `zcashd` RPCs:
 
 First, install [Go](https://golang.org/dl/#stable) version 1.11 or later. You can see your current version by running `go version`.
 
-To build the server, run `make`.
-
-This will build the server binary, where you can use the below commands to configure how it runs.
+Clone the [current repository](https://github.com/zcash/lightwalletd) into a local directory that is _not_ within any component of
+your `$GOPATH` (`$HOME/go` by default), then build the lightwalletd server binary by running `make`.
 
 ## To run SERVER
 
-Assuming you used `make` to build SERVER:
+Assuming you used `make` to build the server, here's a typical developer invocation:
 
 ```
-./server --no-tls-very-insecure=true --conf-file /home/zcash/.zcash/zcash.conf --log-file /logs/server.log --bind-addr 127.0.0.1:18232
+./lightwalletd --no-tls-very-insecure --conf-file ~/.zcash/zcash.conf --data-dir . --log-file /dev/stdout
 ```
+Type `./lightwalletd help` to see the full list of options and arguments.
 
 # Production Usage
 
-Run a local instance of `zcashd` (see above).
+Run a local instance of `zcashd` (see above), except do _not_ specify `--no-tls-very-insecure`.
 Ensure [Go](https://golang.org/dl/#stable) version 1.11 or later is installed.
 
 **x509 Certificates**
@@ -102,8 +107,36 @@ certbot certonly --standalone --preferred-challenges http -d some.forward.dns.co
 Example using server binary built from Makefile:
 
 ```
-./server --tls-cert cert.pem --tls-key key.pem --conf-file /home/zcash/.zcash/zcash.conf --log-file /logs/server.log --bind-addr 127.0.0.1:18232
+./lightwalletd --tls-cert cert.pem --tls-key key.pem --conf-file /home/zcash/.zcash/zcash.conf --log-file /logs/server.log
 ```
+
+## Block cache
+
+Lightwalletd caches all blocks from Sapling activation up to the
+most recent block, which takes about an hour the first time you run
+lightwalletd. During this syncing, lightwalletd is fully available,
+but block fetches are slower until the download completes.
+
+After syncing, lightwalletd will start almost immediately,
+because the blocks are cached in local files (by default, within
+`/var/lib/lightwalletd/db`; you can specify a different location using
+the `--data-dir` command-line option).
+
+Lightwalletd checks the consistency of these files at startup and during
+operation as these files may be damaged by, for example, an unclean shutdown.
+If the server detects corruption, it will automatically re-downloading blocks
+from `zcashd` from that height, requiring up to an hour again (no manual
+intervention is required). But this should occur rarely.
+
+If lightwalletd detects corruption in these cache files, it will log
+a message containing the string `CORRUPTION` and also indicate the
+nature of the corruption.
+
+## Darksidewalletd & Testing
+
+Lightwalletd now supports a mode that enables integration testing of itself and
+wallets that connect to it. See the [darksidewalletd
+docs](docs/darksidewalletd.md) for more information.
 
 # Pull Requests
 
@@ -120,7 +153,7 @@ then
     need_formatting=$(gofmt -l $modified_go_files)
     if test "$need_formatting"
     then
-        echo files need formatting:
+        echo files need formatting (then don't forget to git add):
         echo gofmt -w $need_formatting
         exit 1
     fi
